@@ -104,6 +104,50 @@ Python `requests` 不一定讀取 Windows 信任存放區，因此 `tls_fingerpr
 
 curl-cffi CLI 的 `--no-verify` 只應用於本機示範，絕不能延伸到公開網站或正式環境。
 
+## Railway 部署
+
+### 可直接部署的範圍
+
+Railway 的一般公開網域由平台邊緣處理 HTTPS，應用程式收到的是平台轉送的 HTTP 請求。這使 `/rate-limit`、`/header-policy`、`/session-gate`、`/deferred-content`、`/js-token`、`/captcha-sim` 與 `/robots-honeypot` 都可正常公開展示；但 `/tls-fingerprint` 無法看見訪客原始 ClientHello，會回覆 `403 tls-proxy-required`。這是預期行為，不應在 Railway 上以任意 HTTP header 偽造 TLS 訊號。
+
+部署步驟如下：
+
+1. 在 Railway 建立 Project，選擇 **Deploy from GitHub repo**，並連結 `FlagTech/anti_crawer` 的 `master` 分支。
+2. 在該服務的 Deploy 設定覆寫以下設定：
+
+   ```text
+   Build Command: pip install .
+   Start Command: python -m uvicorn anti_crawler_demo.app:app --host 0.0.0.0 --port $PORT
+   Healthcheck Path: /
+   ```
+
+3. 在 Networking 產生 Railway 網域或新增自有網域。
+4. 將服務維持為 **單一 replica**。
+
+Railway 注入 `PORT` 變數，公開 HTTP 服務必須監聽該 port。Healthcheck 必須回傳 2xx，才會被 Railway 視為可接收流量；本站的 `/` 已符合此要求。[Railway FastAPI 指南](https://docs.railway.com/guides/fastapi) [Railway healthcheck 文件](https://docs.railway.com/deployments/healthchecks)
+
+本站所有狀態都在記憶體：若啟用多 replica、重新部署或服務重新啟動，session、token、CAPTCHA 挑戰和速率計數都不會共享或保留。若未來要水平擴充，應將這些狀態移至 Redis 或資料庫，並重新設計 client/session affinity。
+
+### 在 Railway 保留 TLS ClientHello 的替代架構
+
+若要保留真正的 TLS 指紋檢查，不能使用 Railway 的一般 HTTPS 網域作為 TLS 終端。可行但較不便利的架構是：
+
+```text
+使用者
+  │ HTTPS（自訂網域 + Railway 指派的 TCP port）
+  ▼
+Railway TCP Proxy
+  ▼
+自管 TLS proxy（擷取 ClientHello、終止 TLS）
+  │ Railway Private Networking
+  ▼
+FastAPI 服務
+```
+
+Railway TCP Proxy 會把 raw TCP 轉送到指定的內部 port，因此 TLS proxy 可以收到 ClientHello。它會提供一個網域與連接埠；即使設定自有網域，使用者仍須使用 Railway 指派的 port。自管 proxy 也必須負責公開可驗證的憑證和私鑰。Railway 一般公開網域不支援匯入外部 SSL 憑證。[Railway TCP Proxy 文件](https://docs.railway.com/networking/tcp-proxy) [Railway 網域與憑證文件](https://docs.railway.com/networking/domains/working-with-domains)
+
+因此，若目標是讓一般使用者以標準 `https://example.com:443` 使用 TLS 指紋示範，較好的選擇是可直接控制 443 與 TLS 終端的 VM 或容器平台。Railway 可作為一般展示站，並將 TLS 指紋情境保留在本機或專用 TLS proxy 環境。
+
 ## 開發與驗證
 
 ```powershell

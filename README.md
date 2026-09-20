@@ -119,6 +119,22 @@ uv run curl-cffi get https://localhost:8443/tls-fingerprint --impersonate chrome
 
 這個 CLI 目前沒有指定自訂 CA 檔案的選項，因此 `--no-verify` **只適用於本專案的 localhost 訓練憑證**。正式系統不可略過憑證驗證。若要完整驗證 mkcert 憑證，請使用 `tls_fingerprint_passed.py`；它會明確指定 mkcert 的 `rootCA.pem`。
 
+## 部署到 Railway
+
+Railway 適合部署一般展示情境；但它的公開 HTTPS 網域會先在 Railway 邊緣終止 TLS，再將 HTTP 轉送至應用程式。因此 `/tls-fingerprint` 無法取得訪客原始的 TLS ClientHello，會依設計回覆 `403 tls-proxy-required`。其餘情境可正常運作。
+
+在 Railway 建立 Project 後，選擇從 `FlagTech/anti_crawer` 的 `master` 分支部署，並在服務的 Deploy 設定填入：
+
+```text
+Build Command: pip install .
+Start Command: python -m uvicorn anti_crawler_demo.app:app --host 0.0.0.0 --port $PORT
+Healthcheck Path: /
+```
+
+接著在 Networking 產生公開網域。請維持單一 replica：本站的 session、速率計數與挑戰 token 都在記憶體中，多個 replica 會讓同一測試工作階段落到不同 instance，導致結果不穩定。
+
+若必須公開展示真實 TLS 指紋，需使用 Railway TCP Proxy，將 raw TCP 轉送到自行管理的 TLS 終端（例如 mitmproxy），再以 Railway Private Networking 連到 FastAPI。TCP Proxy 會使用 Railway 指派的非標準連接埠，且公開憑證／私鑰需自行管理；通常更適合部署於能直接控制 443 與 TLS 終端的 VM。完整架構與限制請見[技術文件的 Railway 部署章節](docs/technical-guide.md#railway-部署)。
+
 ## 延伸文件
 
 完整的架構、每項情境的請求流程、TLS 指紋實作與限制，請見[技術文件](docs/technical-guide.md)。
