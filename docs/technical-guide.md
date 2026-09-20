@@ -44,6 +44,24 @@ FastAPI 不會自行「看見」TLS ClientHello；TLS 已在反向代理處結�
 
 這個 header 信任模式只適合「應用程式只暴露給受控反向代理」的部署。正式環境應將上游服務限制在私有網路、由反向代理移除外部同名標頭，並用安全的 secret 管理機制取代教學用預設值。
 
+## 平台支援與本機啟動
+
+應用程式本體、uv 鎖定檔與 Python 範例支援 Windows 與 macOS；它們不依賴 Windows 專用 API。Windows 提供 PowerShell 的 `start-tls-demo.ps1`／`stop-tls-demo.ps1`，macOS 提供相同功能的 `start-tls-demo.sh`／`stop-tls-demo.sh`。兩種腳本都會啟動 FastAPI 上游（8000）及 mitmproxy TLS 終端（8443），並把執行期 PID 與 log 寫入已忽略的 `.run/`。
+
+macOS 使用 Homebrew 的最小安裝步驟：
+
+```bash
+brew install uv mkcert
+uv sync
+uv run playwright install chromium  # 只有 Playwright 範例需要
+mkcert -install
+mkdir -p certs
+mkcert -cert-file certs/localhost.pem -key-file certs/localhost-key.pem localhost 127.0.0.1 ::1
+bash scripts/start-tls-demo.sh
+```
+
+`mkcert -install` 會將本機 CA 加入 macOS 系統信任存放區；Firefox 使用自己的 NSS 資料庫時，另裝 `brew install nss`。停止 TLS 示範請執行 `bash scripts/stop-tls-demo.sh`。uv 與 mkcert 均提供 Homebrew 安裝方式。[uv 安裝文件](https://docs.astral.sh/uv/getting-started/installation/) [mkcert 文件](https://github.com/FiloSottile/mkcert)
+
 ## 各情境行為
 
 ### 請求頻率限制（`/rate-limit`）

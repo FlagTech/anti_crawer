@@ -69,6 +69,41 @@ pwsh -ExecutionPolicy Bypass -File .\scripts\start-tls-demo.ps1
 .\scripts\stop-tls-demo.ps1
 ```
 
+## macOS（Homebrew）
+
+網站程式與所有 Python 範例同樣支援 macOS；Apple Silicon 與 Intel Mac 都可使用 uv。先安裝工具並同步相依套件：
+
+```bash
+brew install uv mkcert
+git clone https://github.com/FlagTech/anti_crawer.git
+cd anti_crawer
+uv sync
+uv run playwright install chromium  # 僅動態／CAPTCHA Playwright 範例需要
+```
+
+一般 HTTP 示範的啟動方式相同：
+
+```bash
+uv run anti-crawler-demo
+```
+
+TLS 情境只需首次建立本機憑證：
+
+```bash
+mkcert -install
+mkdir -p certs
+mkcert -cert-file certs/localhost.pem -key-file certs/localhost-key.pem localhost 127.0.0.1 ::1
+bash scripts/start-tls-demo.sh
+```
+
+瀏覽 [https://localhost:8443/tls-fingerprint](https://localhost:8443/tls-fingerprint)，停止時執行：
+
+```bash
+bash scripts/stop-tls-demo.sh
+```
+
+若以 Firefox 測試，mkcert 官方建議另安裝 `nss`：`brew install nss`。`certs/` 包含私密金鑰，仍不可提交到 Git。
+
 ## 情境一覽
 
 | 路徑 | 單一規則 | 預期觀察 |
