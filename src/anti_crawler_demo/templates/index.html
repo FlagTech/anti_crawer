@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="stylesheet" href="/static/site.css">
+    <title>反爬蟲情境測試站</title>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">反爬蟲情境測試站</p>
+      <h1>反爬蟲情境測試站</h1>
+      <p class="lead">每張卡片都是獨立的 HTML 資料表頁面。沒有全站共用的阻擋器：只有該頁名稱所代表的單一規則會決定整個網頁是否包含資料表。</p>
+      <section class="curl">
+        <h2>測試方式</h2>
+        <p>每頁的展開卡片提供 requests、Beautiful Soup 或 Playwright 範例，會直接抓取網頁並讀取 <code>#dataset-table</code>；不需要呼叫額外的示範 API。</p>
+      </section>
+      <section class="grid">
+        {% for slug, item in demos.items() %}
+        <a class="card" href="{{ '/session-gate/start' if slug == 'session-gate' else '/' ~ slug }}">
+          <h2>{{ item[0] }}</h2>
+          <p>{{ item[1] }}</p>
+          <span>開啟資料情境 →</span>
+        </a>
+        {% endfor %}
+      </section>
+    </main>
+  </body>
+</html>

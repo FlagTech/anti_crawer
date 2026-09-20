@@ -1,0 +1,77 @@
+const demo=document.body.dataset.demo,table=document.querySelector('#dataset-table'),datasetState=document.querySelector('#dataset-state'),origin=location.origin,url=`${origin}/${demo}`;
+/* Server-rendered in demo.html; retained client-side data is intentionally disabled. */
+/* const techniqueInfo={
+ 'rate-limit':{name:'滑動視窗限流',detail:'索引頁與所有報告詳情頁共用 10 秒最多 5 次的配額；超限時整個 HTML 回應為 429，並附 Retry-After。',pass:'使用同一個 cookie session 追蹤連結；收到 429 時讀取 Retry-After、等待指定秒數後再重試。'},
+ 'header-policy':{name:'導覽標頭檢查',detail:'整個 HTML 頁面要求 Accept: text/html 與瀏覽器樣式 User-Agent；缺少任一項即回傳 403。',pass:'在受控測試中，設定網站要求的 HTML Accept 與 User-Agent，再解析回傳的整頁表格。'},
+ 'session-gate':{name:'Session gate',detail:'資料表只會出現在已有本站示範 session cookie 的整頁 HTML；沒有 session 時回傳 401。',pass:'先造訪 /session-gate/start 建立 session，並在後續請求保存與帶回 cookie。'},
+ 'deferred-content':{name:'動態資料載入',detail:'初始 HTML 只有表格結構，資料列由頁面 JavaScript 自動非同步載入。',pass:'使用可執行 JavaScript 的瀏覽器自動化工具，例如 Playwright，等待 tbody 的資料列出現。'},
+ 'js-token':{name:'JavaScript 短效 token',detail:'初始 HTML 不含資料列；頁面 JavaScript 取得一次性短效 token 後才載入表格。',pass:'使用瀏覽器環境讓頁面正常執行 token 流程，並等待資料列渲染完成。'},
+ 'captcha-sim':{name:'互動 challenge 模擬',detail:'資料表需在頁面完成受控的一次性 challenge 流程後才出現。',pass:'使用瀏覽器自動化執行頁面流程並等待 challenge 後的資料表；此站僅為本機訓練模擬。'},
+ 'robots-honeypot':{name:'robots.txt 與 honeypot',detail:'一般資料頁可讀取，但 robots.txt 禁止的 /training-honeypot 會記錄並以 403 回應。',pass:'爬蟲先讀取 robots.txt、排除禁止路徑，只抓取一般資料頁與已發現的正常連結。'},
+ 'browser-integrity':{name:'瀏覽器完整性訊號',detail:'資料列需等待頁面送出 JavaScript、storage、viewport、語言與指標等一致性訊號後才載入。',pass:'使用實際瀏覽器引擎執行頁面；不要把單純 HTTP client 當成能提供完整瀏覽器能力的工具。'}
+};
+const techniqueNote=document.querySelector('#technique-note'),info=techniqueInfo[demo];
+techniqueNote.replaceChildren(Object.assign(document.createElement('strong'),{textContent:`本例技術：${info.name}`}),document.createElement('br'),document.createTextNode(`檢查內容：${info.detail} 合規取得方式：${info.pass}`)); */
+const staticParser=`import requests\nfrom bs4 import BeautifulSoup\nr = requests.get('${url}')\nsoup = BeautifulSoup(r.text, 'html.parser')\nprint(r.status_code, [row.get_text(' ', strip=True) for row in soup.select('#dataset-table tbody tr')])`;
+const browserParser=`from playwright.sync_api import sync_playwright\nwith sync_playwright() as p:\n    browser = p.chromium.launch()\n    page = browser.new_page()\n    page.goto('${url}')\n    page.locator('#dataset-table:not([hidden]) tbody tr').first.wait_for()\n    print(page.locator('#dataset-table tbody tr').all_inner_texts())\n    browser.close()`;
+const captchaParser=`import re\nfrom playwright.sync_api import sync_playwright\nwith sync_playwright() as p:\n    browser = p.chromium.launch()\n    page = browser.new_page()\n    page.goto('${url}')\n    prompt = page.locator('#captcha-prompt').inner_text()\n    answer = sum(map(int, re.findall(r'\\d+', prompt)))\n    page.locator('#captcha-answer').fill(str(answer))\n    page.locator('#captcha-submit').click()\n    page.locator('#dataset-table:not([hidden]) tbody tr').first.wait_for()\n    print(page.locator('#dataset-table tbody tr').all_inner_texts())\n    browser.close()`;
+const curlCffiParser=`from pathlib import Path\nimport subprocess\nfrom bs4 import BeautifulSoup\nfrom curl_cffi import requests\nca = Path(subprocess.check_output(['mkcert', '-CAROOT'], text=True).strip()) / 'rootCA.pem'\nr = requests.get('${url}', impersonate='chrome', verify=str(ca))\nsoup = BeautifulSoup(r.text, 'html.parser')\nprint(r.status_code, [row.get_text(' ', strip=True) for row in soup.select('#dataset-table tbody tr')])`;
+const examples={
+ 'rate-limit':{cb:`curl -c cookies.txt ${url}\ncurl -b cookies.txt ${origin}/rate-limit/reports/R-101\ncurl -b cookies.txt ${origin}/rate-limit/reports/R-102\ncurl -b cookies.txt ${origin}/rate-limit/reports/R-103\ncurl -b cookies.txt ${origin}/rate-limit/reports/R-104\ncurl -i -b cookies.txt ${origin}/rate-limit/reports/R-101  # 429`,cp:`curl -c cookies.txt ${url}\ncurl -b cookies.txt ${origin}/rate-limit/reports/R-101\n# Stop before the sixth request, or wait 10 seconds before continuing.`,pb:`import requests\ns=requests.Session()\nindex=s.get('${url}')\nfor link in index.html.find_all('a',href=True):\n    if '/reports/' in link['href']: print(s.get('${origin}'+link['href']).status_code)\nprint(s.get('${origin}/rate-limit/reports/R-101').status_code)  # 429`,pp:`import time, requests\nfrom bs4 import BeautifulSoup\ns=requests.Session(); index=s.get('${url}')\nsoup=BeautifulSoup(index.text,'html.parser')\ndef get_with_backoff(href):\n    response=s.get('${origin}'+href)\n    if response.status_code == 429:\n        wait=int(response.headers['Retry-After'])\n        print(f'429: wait {wait}s, then retry {href}')\n        time.sleep(wait)\n        response=s.get('${origin}'+href)\n    return response\n# 1 index + 6 reports = 7 reads: the sixth read receives 429.\nfor href in [a['href'] for a in soup.select('#dataset-table a')]:\n    report=BeautifulSoup(get_with_backoff(href).text,'html.parser')\n    print(report.select_one('#report-details').get_text(' ',strip=True))`},
+ 'header-policy':{cb:`curl -i ${url}`,cp:`curl -i ${url} -H "Accept: text/html" -A "Mozilla/5.0 training-browser"`,pb:`import requests\nprint(requests.get('${url}').status_code)`,pp:`import requests\nfrom bs4 import BeautifulSoup\nr=requests.get('${url}',headers={'Accept':'text/html','User-Agent':'Mozilla/5.0 training-browser'})\nprint(r.status_code, [x.get_text(' ',strip=True) for x in BeautifulSoup(r.text,'html.parser').select('#dataset-table tbody tr')])`},
+ 'session-gate':{cb:`curl -i ${url}`,cp:`curl -c cookies.txt -L ${origin}/session-gate/start\ncurl -b cookies.txt ${url}`,pb:`import requests\nprint(requests.get('${url}').status_code)`,pp:`import requests\nfrom bs4 import BeautifulSoup\ns=requests.Session(); r=s.get('${origin}/session-gate/start')\nprint(r.status_code, [x.get_text(' ',strip=True) for x in BeautifulSoup(r.text,'html.parser').select('#dataset-table tbody tr')])`},
+ 'deferred-content':{cb:`curl -s ${url} | grep dataset-table\n# HTML shell has no rows because curl does not execute JavaScript.`,cp:`# curl can only obtain the HTML shell; use Playwright below to obtain dynamically rendered rows.`,pb:`import requests\nfrom bs4 import BeautifulSoup\nsoup=BeautifulSoup(requests.get('${url}').text,'html.parser')\nprint(soup.select('#dataset-table tbody tr'))  # []`,pp:browserParser},
+ 'js-token':{cb:`curl -s ${url} | grep dataset-table\n# The token workflow is not executed.`,cp:`# Use a browser automation tool that executes this page's JavaScript.`,pb:`import requests\nfrom bs4 import BeautifulSoup\nprint(BeautifulSoup(requests.get('${url}').text,'html.parser').select('#dataset-table tbody tr'))`,pp:browserParser},
+ 'captcha-sim':{cb:`curl -s ${url} | grep dataset-table\n# curl cannot complete the manual verification workflow.`,cp:`# Fill in the page's verification question manually, or use Playwright below for automated testing.`,pb:`import requests\nfrom bs4 import BeautifulSoup\nprint(BeautifulSoup(requests.get('${url}').text,'html.parser').select('#dataset-table tbody tr'))`,pp:captchaParser},
+ 'robots-honeypot':{cb:`curl -i ${origin}/training-honeypot`,cp:`curl -i ${url}`,pb:`import requests\nprint(requests.get('${origin}/training-honeypot').status_code)`,pp:staticParser},
+ 'tls-fingerprint':{cb:`curl -i ${url}\n# curl 的 TLS ClientHello 不符合本機瀏覽器型態基線，因此回傳 403。`,cp:`# 沒有可靠的 curl 參數可把底層 TLS 堆疊變成 Chromium。\n# 請使用下方 curl-cffi 的 Python 範例。`,pb:`import requests\nr=requests.get('${url}')\nprint(r.status_code)  # 403：requests 的 OpenSSL ClientHello 不符合基線`,pp:curlCffiParser}
+};
+for(const [id,key] of Object.entries({'curl-block':'cb','curl-pass':'cp','python-block':'pb','python-pass':'pp'}))document.querySelector(`#${id}`).textContent=examples[demo][key];
+const notes={
+ 'rate-limit':{
+  'curl-block':'`-c cookies.txt` 將伺服器發出的 client cookie 寫入檔案；後續 `-b cookies.txt` 帶回同一個識別碼，才能重現同一支爬蟲連續追蹤索引與報告連結後觸發 429。最後的 `-i` 顯示 Retry-After 回應標頭。',
+  'curl-pass':'先以 `-c` 儲存 cookie，再用 `-b` 存取一份詳情報告；範例刻意停在第 2 次讀取，保留配額。',
+  'python-block':'`requests.Session()` 自動保存 cookie。程式先解析索引 HTML 裡的 `<a href>`，再連續請求每份報告；最後一次會印出 429。',
+  'python-pass':'Beautiful Soup 的 `select("#dataset-table a")` 只取索引表內的 6 份報告連結；加上索引頁共 7 次讀取，第 6 次必定收到 429。`get_with_backoff` 會讀取 Retry-After、等待後重試，最後仍取得全部 6 份詳情表。'},
+ 'header-policy':{
+  'curl-block':'不帶額外參數的 curl 通常送出 `Accept: */*` 與 curl User-Agent，因此整個 HTML 頁面會被 403 擋下。',
+  'curl-pass':'`-H` 加入 `Accept: text/html`；`-A` 指定 User-Agent。兩者都符合本情境唯一的導覽標頭規則。',
+  'python-block':'預設 `requests.get()` 不會送出此頁要求的 HTML Accept 與瀏覽器樣式 User-Agent。',
+  'python-pass':'headers 字典只附上本情境要求的兩個標頭；Beautiful Soup 再從回應的整頁 HTML 選取資料列。'},
+ 'session-gate':{
+  'curl-block':'直接 GET 報告頁沒有先前建立的示範 session cookie，因此回應 401 且頁面不含表格。',
+  'curl-pass':'`-L` 跟隨 `/session-gate/start` 的 303 redirect；`-c` 儲存 cookie，`-b` 在第二個整頁請求中帶回。',
+  'python-block':'單次 `requests.get()` 沒有 session 狀態，因此只能取得阻擋頁。',
+  'python-pass':'同一個 `requests.Session()` 先造訪 start 路徑並保留 cookie，redirect 後取得含表格的完整 HTML。'},
+ 'deferred-content':{
+  'curl-block':'curl 只下載初始 HTML，沒有 JavaScript 執行環境，因此可看見表格殼但沒有任何 `<tbody>` 資料列。',
+  'curl-pass':'此情境沒有單靠 curl 取得動態列的通過方式；需使用可執行頁面 JavaScript 的瀏覽器自動化工具。',
+  'python-block':'Beautiful Soup 只解析 requests 已下載的初始 HTML，輸出空陣列正是此情境要驗證的結果。',
+  'python-pass':'Playwright 啟動 Chromium，`goto()` 載入整頁，並以 `locator(...).wait_for()` 等待資料列由頁內 JavaScript 自動出現。'},
+ 'js-token':{
+  'curl-block':'curl 無法執行頁內的 token 工作流程，因此初始 HTML 沒有資料列。',
+  'curl-pass':'此卡片標示 curl 的限制；請使用下方 Playwright 範例，讓頁面自動取得並使用短效 token。',
+  'python-block':'requests 與 Beautiful Soup 不執行 JavaScript，故只能抓到尚未解鎖的 HTML。',
+  'python-pass':'Playwright 的瀏覽器環境會執行頁面腳本；等待 selector 可確定 token 驗證完成後再取表格。'},
+ 'captcha-sim':{
+  'curl-block':'curl 不能顯示或提交頁面的手動驗證題目，因此不會取得資料列。',
+  'curl-pass':'一般使用者在頁面輸入一次性題目的答案並按下驗證按鈕；自動化測試可使用下方 Playwright 範例填答。',
+  'python-block':'requests 只能抓取文件，無法填入並送出頁面上的驗證欄位。',
+  'python-pass':'Playwright 讀取驗證題目、填入答案、按下按鈕，再等待表格出現。'},
+ 'robots-honeypot':{
+  'curl-block':'直接造訪 `/training-honeypot` 會得到 403；這模擬爬蟲未遵守 robots.txt 中禁止路徑的情境。',
+  'curl-pass':'直接 GET 本資料頁可得到含表格的 HTML；此技巧的觀測點是 honeypot 路徑，而不是一般頁面。',
+  'python-block':'requests 直接打 honeypot 路徑，會印出 403 以供爬蟲測試程式判斷。',
+  'python-pass':'Beautiful Soup 從一般資料頁的完整 HTML 取出表格列，不會進入 honeypot。'},
+ 'tls-fingerprint':{
+  'curl-block':'curl 已完成 HTTPS 交握，但其 TLS ClientHello 不是 Chromium 的型態；反向代理會將計算結果交給站台，整個 HTML 頁面回傳 403 與 tls-fingerprint-mismatch。',
+  'curl-pass':'這個技術沒有誠實的「curl 可通過」參數：HTTP 標頭、User-Agent 或 `--insecure` 都不會改變 ClientHello。請改用下方 curl-cffi 的 Chrome impersonation 範例。',
+  'python-block':'requests 使用其 TLS 函式庫建立交握，雖然可送出任何 HTTP User-Agent，仍不會具有受控 Chromium 基線的 TLS 指紋。',
+  'python-pass':'curl-cffi 以 `impersonate="chrome"` 使用 Chrome 型態的 TLS 與 HTTP/2 指紋。程式指定 mkcert 的 rootCA.pem 驗證本機憑證，通過代理判斷後，再用 Beautiful Soup 讀取整頁 HTML 中的資料列。'}
+};
+for(const [id,text] of Object.entries(notes[demo]))document.querySelector(`#${id}-note`).textContent=text;
+const api=(action,body,headers={})=>fetch(`/api/${demo}/${action}`,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:body?JSON.stringify(body):undefined}).then(async r=>({code:r.status,json:await r.json()}));
+function renderRows(rows){const body=table.querySelector('tbody');body.replaceChildren(...rows.map(row=>{const tr=document.createElement('tr');for(const value of [row.id,row.name,row.period,row.value]){const td=document.createElement('td');td.textContent=value;tr.append(td)}return tr}));table.hidden=false;datasetState.className='verdict allowed';datasetState.textContent=`✓ 已自動載入 ${rows.length} 筆資料。`}
+async function setupCaptcha(){const panel=document.querySelector('#captcha-panel'),prompt=document.querySelector('#captcha-prompt'),answer=document.querySelector('#captcha-answer'),submit=document.querySelector('#captcha-submit'),status=document.querySelector('#captcha-status');try{const issued=await api('issue');prompt.textContent=issued.json.data.prompt;panel.hidden=false;submit.onclick=async()=>{submit.disabled=true;status.textContent='正在驗證…';const response=await api('verify',{answer:answer.value});if(response.json.data?.rows){renderRows(response.json.data.rows);panel.hidden=true}else{status.textContent=`驗證失敗：${response.json.message}`;submit.disabled=false;answer.focus()}};answer.focus()}catch(error){datasetState.className='verdict blocked';datasetState.textContent=`無法準備驗證題目：${error.message}`}}
+async function autoLoad(){try{if(demo==='captcha-sim'){await setupCaptcha();return}let response;if(demo==='deferred-content')response=await api('read',null,{'X-Requested-With':'XMLHttpRequest'});if(demo==='js-token'){const issued=await api('issue');response=await api('use',{token:issued.json.data.token})}if(response?.json?.data?.rows)renderRows(response.json.data.rows);else if(response)throw new Error(response.json.message)}catch(error){datasetState.className='verdict blocked';datasetState.textContent=`資料表未載入：${error.message}`}}
+if(document.body.dataset.serverRows==='false')autoLoad();

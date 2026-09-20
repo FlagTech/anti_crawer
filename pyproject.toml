@@ -1,0 +1,33 @@
+[project]
+name = "anti-crawler-demo"
+version = "0.1.0"
+description = "An internal FastAPI anti-crawling techniques demonstration site"
+readme = "README.md"
+authors = [
+    { name = "meebox", email = "meebox@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "beautifulsoup4>=4.15.0",
+    "curl-cffi>=0.16.3",
+    "fastapi>=0.141.1",
+    "itsdangerous>=2.2.0",
+    "jinja2>=3.1.6",
+    "mitmproxy>=11.0.2",
+    "playwright>=1.63.0",
+    "requests>=2.34.2",
+    "uvicorn[standard]>=0.53.0",
+]
+
+[project.scripts]
+anti-crawler-demo = "anti_crawler_demo.app:main"
+
+[build-system]
+requires = ["uv_build>=0.12.15,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+]

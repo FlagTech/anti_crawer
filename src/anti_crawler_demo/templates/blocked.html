@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="stylesheet" href="/static/site.css">
+    <title>請求已被阻擋</title>
+  </head>
+  <body>
+    <main class="blocked-page">
+      <p class="eyebrow">HTTP {{ status }} · {{ demo }}</p>
+      <h1>這次網頁抓取沒有取得資料表</h1>
+      <section class="verdict blocked">
+        <strong>阻擋原因</strong><br>
+        {{ reason }}
+      </section>
+      <section class="curl">
+        <h2>如何通過</h2>
+        <p>{{ recovery }}</p>
+        <p>這是此路徑唯一套用的規則；回應標頭會標示對應的 <code>X-Training-Rule</code>。</p>
+      </section>
+      <a class="back" href="/">← 返回測試首頁</a>
+    </main>
+  </body>
+</html>

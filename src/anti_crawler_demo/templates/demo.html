@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="stylesheet" href="/static/site.css">
+    <title>{{ meta[0] }}</title>
+  </head>
+  <body data-demo="{{ demo }}" data-server-rows="{{ 'true' if rows else 'false' }}">
+    <main>
+      <a href="/" class="back">← 所有測試情境</a>
+      <p class="eyebrow">單一反爬蟲規則情境</p>
+      <h1>{{ meta[0] }}</h1>
+      <p class="lead">{{ meta[2] }}</p>
+      <section class="dataset">
+        <div>
+          <p class="content-tag">公開統計資料庫</p>
+          <h2>2026 年 8 月城市零售指數</h2>
+          <p>
+            {% if demo == 'rate-limit' %}
+            這是報告索引頁。索引只列出指標摘要；每筆報告有不同的發布時間與完整欄位，必須追蹤連結到個別主頁取得。索引與所有詳情頁共用 10 秒 5 次的讀取配額，適合測試連結追蹤與退避策略。
+            {% else %}
+            這張表格是爬蟲的具體目標。靜態情境會直接包含在 HTML；動態情境會在頁面載入後自動出現。
+            {% endif %}
+          </p>
+        </div>
+        <div id="dataset-state" class="verdict {{ 'allowed' if rows else 'neutral' }}">
+          {% if demo == 'tls-fingerprint' and rows %}✓ TLS ClientHello 指紋符合本機瀏覽器型態基線。{% else %}{{ '✓ 資料表已包含在本頁 HTML 中。' if rows else '正在以本頁規則自動取得資料表…' }}{% endif %}
+        </div>
+        <div class="table-wrap">
+          <table id="dataset-table" {{ '' if rows else 'hidden' }}>
+            <thead>
+              <tr>
+                <th>資料編號</th>
+                <th>城市／指標</th>
+                <th>期間</th>
+                <th>指數</th>
+                {% if demo == 'rate-limit' %}<th>報告頁</th>{% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows or [] %}
+              <tr>
+                <td>{{ row.id }}</td>
+                <td>{{ row.name }}</td>
+                <td>{{ row.period }}</td>
+                <td>{{ row.value }}</td>
+                {% if demo == 'rate-limit' %}
+                <td><a href="/rate-limit/reports/{{ row.id }}">閱讀報告</a></td>
+                {% endif %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section class="captcha-panel" id="captcha-panel" hidden>
+        <h2>人機驗證</h2>
+        <p>請完成下列一次性題目，驗證後才會載入資料表。</p>
+        <label for="captcha-answer" id="captcha-prompt">正在準備驗證題目…</label>
+        <div class="captcha-controls">
+          <input id="captcha-answer" type="number" inputmode="numeric" autocomplete="off" required>
+          <button id="captcha-submit" type="button">驗證並載入資料</button>
+        </div>
+        <p class="captcha-status" id="captcha-status" aria-live="polite"></p>
+      </section>
+      <section class="examples">
+        <h2>直接抓取本頁的 curl／Python 範例</h2>
+        <p>展開卡片可取得最小可用的「被阻擋」與「可通過」範例。靜態表格以 Beautiful Soup 找元素；動態表格以 Playwright 等待元素出現。</p>
+        <aside class="technique-note" id="technique-note">
+          <strong>本例技術：{{ technique[0] }}</strong><br>
+          檢查內容：{{ technique[1] }}<br>
+          合規取得方式：{{ technique[2] }}
+        </aside>
+        <details>
+          <summary>curl：預期被阻擋</summary>
+          <p class="example-note" id="curl-block-note"></p>
+          <pre id="curl-block"></pre>
+        </details>
+        <details>
+          <summary>curl：預期通過</summary>
+          <p class="example-note" id="curl-pass-note"></p>
+          <pre id="curl-pass"></pre>
+        </details>
+        <details>
+          <summary>Python：預期被阻擋</summary>
+          <p class="example-note" id="python-block-note"></p>
+          <pre id="python-block"></pre>
+        </details>
+        <details>
+          <summary>Python：預期通過並擷取資料表</summary>
+          <p class="example-note" id="python-pass-note"></p>
+          <pre id="python-pass"></pre>
+        </details>
+      </section>
+    </main>
+    <script src="/static/demo.js"></script>
+  </body>
+</html>

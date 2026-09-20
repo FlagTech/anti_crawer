@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="stylesheet" href="/static/site.css">
+    <title>{{ report.name }}｜報告詳情</title>
+  </head>
+  <body>
+    <main>
+      <a href="/rate-limit" class="back">← 返回報告索引</a>
+      <p class="eyebrow">城市零售統計資料庫 · 報告詳情</p>
+      <h1>{{ report.name }}</h1>
+      <p class="lead">這是連續抓取情境中的報告主頁。自動工具通常先讀取索引表，再逐一追蹤每份報告的連結；本頁與索引頁共用同一個請求頻率限制規則。</p>
+      <section class="dataset">
+        <h2>報告詳細資料</h2>
+        <div class="table-wrap">
+          <table id="report-details">
+            <tbody>
+              {% for label, value in details %}
+              <tr>
+                <th>{{ label }}</th>
+                <td>{{ value }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
