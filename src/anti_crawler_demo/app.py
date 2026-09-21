@@ -20,6 +20,7 @@ SESSION_COOKIE = "demo_session"
 TRAINING_USERNAME = "learner@example.test"
 TRAINING_PASSWORD = "DemoPass!2026"
 DEMOS = {
+    "basic": ("基本公開資料頁（No protection）", "不套用反爬蟲規則", "最簡易的對照組：完整資料表直接出現在 HTML，任何一般 HTTP client 都可讀取。"),
     "rate-limit": ("請求頻率限制（Rate limiting）", "10 秒內最多讀取 5 個頁面", "模擬爬蟲從索引追蹤多份報告時，伺服器如何以滑動視窗限制連續讀取。"),
     "header-policy": ("請求標頭檢查（Header policy）", "要求合理的網頁導覽標頭", "比較缺少標頭的自動請求與符合網頁導覽條件的完整 HTML 回應。"),
     "session-gate": ("登入工作階段保護（Session gate）", "必須先登入才能讀取資料", "模擬會員登入後才可閱讀受保護資料；沒有有效工作階段時不提供資料表。"),
@@ -38,6 +39,7 @@ DATASET = [
     {"id": "R-106", "name": "高雄市零售指數", "period": "2026-08", "value": "107.6", "published": "2026-10-07 15:10"},
 ]
 TECHNIQUE_INFO = {
+    "basic": ("無反爬蟲保護", "整頁 HTML 直接包含資料表，沒有 cookie、標頭、登入、JavaScript、速率或 TLS 指紋條件。", "直接用 curl 或 requests 取得本頁，再以 Beautiful Soup 選取 #dataset-table 的資料列即可。此頁是用來對照其他單一防護情境的基準。"),
     "rate-limit": ("滑動視窗限流", "索引與報告詳情頁共用 10 秒最多 5 次的讀取配額；超限回傳 429 與 Retry-After。", "保存同一個 session cookie，遇到 429 時讀取 Retry-After、等待後再重試。"),
     "header-policy": ("導覽標頭檢查", "整個 HTML 頁面要求 Accept: text/html 與瀏覽器樣式 User-Agent，缺少時回傳 403。", "在受控測試中提供網站要求的兩個標頭，再解析回傳的完整 HTML。"),
     "session-gate": ("登入後的工作階段驗證", "模擬會員在登入頁以唯一的訓練帳號與密碼送出表單；伺服器驗證成功後建立獨立、HttpOnly 的 session cookie，才會提供受保護資料頁。", "一般使用者在登入頁輸入 learner@example.test／DemoPass!2026；程式則以 Session 保存 cookie，POST 表單到 /session-gate/login 後再抓取 /session-gate。"),
@@ -207,7 +209,9 @@ async def demo_page(request: Request, demo: str) -> HTMLResponse:
         return HTMLResponse("找不到指定情境", status_code=404)
     client = client_id(request.cookies.get("demo_client"), request)
     rows: list[dict[str, str]] | None = None
-    if demo == "rate-limit":
+    if demo == "basic":
+        rows = DATASET
+    elif demo == "rate-limit":
         retry = allow_rate_limited_page(request, client)
         if retry is not None:
             return page_block(request, demo, 429, "rate-limit", f"10 秒內已連續讀取 5 個索引或報告頁面；請在 {retry} 秒後再試。", "降低請求頻率後重新抓取同一頁。", retry)

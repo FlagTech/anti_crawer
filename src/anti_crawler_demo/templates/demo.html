@@ -78,27 +78,35 @@
           合規取得方式：{{ technique[2] }}
         </aside>
         <details>
-          <summary>curl：預期被阻擋</summary>
-          <p class="example-note" id="curl-block-note"></p>
-          <pre id="curl-block"></pre>
+          <summary>{{ 'curl：直接取得資料表' if demo == 'basic' else 'curl：預期被阻擋' }}</summary>
+          <p class="example-note" id="curl-block-note">{% if demo == 'basic' %}本頁沒有阻擋條件；此命令直接取得含資料表的完整 HTML。{% endif %}</p>
+          <pre id="curl-block">{% if demo == 'basic' %}curl -s {{ request.base_url }}basic{% endif %}</pre>
         </details>
         <details>
-          <summary>curl：預期通過</summary>
-          <p class="example-note" id="curl-pass-note"></p>
-          <pre id="curl-pass"></pre>
+          <summary>{{ 'curl：同一個直接取得方式' if demo == 'basic' else 'curl：預期通過' }}</summary>
+          <p class="example-note" id="curl-pass-note">{% if demo == 'basic' %}本頁不區分阻擋與通過，任何一般 GET 請求都會得到同一份 HTML。grep 僅示範如何縮小輸出範圍。{% endif %}</p>
+          <pre id="curl-pass">{% if demo == 'basic' %}curl -s {{ request.base_url }}basic | grep -A 30 'dataset-table'{% endif %}</pre>
         </details>
         <details>
-          <summary>Python：預期被阻擋</summary>
-          <p class="example-note" id="python-block-note"></p>
-          <pre id="python-block"></pre>
+          <summary>{{ 'Python：直接解析資料表' if demo == 'basic' else 'Python：預期被阻擋' }}</summary>
+          <p class="example-note" id="python-block-note">{% if demo == 'basic' %}本頁沒有阻擋條件。requests 下載 HTML 後，Beautiful Soup 可直接選取資料表列。{% endif %}</p>
+          <pre id="python-block">{% if demo == 'basic' %}import requests
+from bs4 import BeautifulSoup
+r = requests.get('{{ request.base_url }}basic')
+soup = BeautifulSoup(r.text, 'html.parser')
+print(r.status_code, [row.get_text(' ', strip=True) for row in soup.select('#dataset-table tbody tr')]){% endif %}</pre>
         </details>
         <details>
-          <summary>Python：預期通過並擷取資料表</summary>
-          <p class="example-note" id="python-pass-note"></p>
-          <pre id="python-pass"></pre>
+          <summary>{{ 'Python：requests + Beautiful Soup' if demo == 'basic' else 'Python：預期通過並擷取資料表' }}</summary>
+          <p class="example-note" id="python-pass-note">{% if demo == 'basic' %}這是最小的靜態網頁抓取方式：GET 後以 #dataset-table tbody tr 選取資料列。{% endif %}</p>
+          <pre id="python-pass">{% if demo == 'basic' %}import requests
+from bs4 import BeautifulSoup
+r = requests.get('{{ request.base_url }}basic')
+soup = BeautifulSoup(r.text, 'html.parser')
+print(r.status_code, [row.get_text(' ', strip=True) for row in soup.select('#dataset-table tbody tr')]){% endif %}</pre>
         </details>
       </section>
     </main>
-    <script src="/static/demo.js"></script>
+    <script src="/static/demo.js?v=20260921-basic-server-rendered"></script>
   </body>
 </html>

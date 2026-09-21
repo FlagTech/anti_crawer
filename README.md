@@ -108,6 +108,7 @@ bash scripts/stop-tls-demo.sh
 
 | 路徑 | 單一規則 | 預期觀察 |
 | --- | --- | --- |
+| `/basic` | 無反爬蟲保護 | 完整資料表直接存在 HTML，是其他情境的對照組 |
 | `/rate-limit` | 10 秒內最多讀取 5 個索引或報告頁 | 第 6 次回 `429` 與 `Retry-After` |
 | `/header-policy` | 要求 `Accept: text/html` 與瀏覽器型態 User-Agent | 缺少標頭時整頁回 `403` |
 | `/session-gate` | 需以唯一訓練帳密登入後取得 session cookie | 未登入時導向登入頁 |
@@ -117,7 +118,7 @@ bash scripts/stop-tls-demo.sh
 | `/robots-honeypot` | robots.txt 與禁止的誘餌路徑 | 存取 `/training-honeypot` 回 `403` |
 | `/tls-fingerprint` | TLS ClientHello／JA3 型態檢查 | `requests`／curl 被擋；Chrome 型態指紋可通過 |
 
-每個頁面都有可展開的 curl 與 Python 卡片、阻擋原因，以及合規的測試方式。阻擋回應皆含 `X-Training-Rule` 標頭。
+每個頁面都有可展開的 curl 與 Python 卡片、阻擋原因，以及合規的測試方式。每張卡片的程式碼下方都會解釋該命令列選項或 Python 技術細節；阻擋回應皆含 `X-Training-Rule` 標頭。
 
 ### 登入情境的訓練帳密
 
@@ -133,6 +134,9 @@ uv run python examples/python/rate_limit_backoff.py
 
 # 動態內容：以 Chromium 等待資料列
 uv run python examples/python/deferred_content_passed.py
+
+# 無保護對照組：直接讀取靜態 HTML 資料表
+uv run python examples/python/basic_public_page.py
 
 # TLS：一般 requests 被擋，curl-cffi 模擬 Chrome 指紋後可通過
 uv run python examples/python/tls_fingerprint_blocked.py https://localhost:8443

@@ -62,7 +62,30 @@ bash scripts/start-tls-demo.sh
 
 `mkcert -install` 會將本機 CA 加入 macOS 系統信任存放區；Firefox 使用自己的 NSS 資料庫時，另裝 `brew install nss`。停止 TLS 示範請執行 `bash scripts/stop-tls-demo.sh`。uv 與 mkcert 均提供 Homebrew 安裝方式。[uv 安裝文件](https://docs.astral.sh/uv/getting-started/installation/) [mkcert 文件](https://github.com/FiloSottile/mkcert)
 
+## 範例卡的閱讀方式
+
+每個情境頁的四張展開卡都附有與該段程式碼相對應的說明，不只列出命令。常見的 curl 選項如下：
+
+| 選項 | 用途 | 使用情境 |
+| --- | --- | --- |
+| `-s` | 關閉進度列，只輸出回應內容 | 靜態或動態 HTML 的輸出檢查 |
+| `-i` | 將 HTTP status 與回應標頭一起輸出 | 觀察 `403`、`429`、`Retry-After`、`Location`、`X-Training-Rule` |
+| `-H` | 加入指定 request header | header-policy 的 `Accept: text/html` |
+| `-A` | 設定 User-Agent | header-policy 的瀏覽器型態 UA |
+| `-c FILE` | 將伺服器回覆的 cookie 寫入檔案 | rate-limit、登入 session |
+| `-b FILE` | 從檔案帶回 cookie | 以同一個用戶端識別碼繼續請求 |
+| `-L` | 跟隨 3xx redirect | 登入成功後抵達受保護資料頁 |
+| `-X POST`、`-d` | 指定 POST 並送出 URL-encoded 表單欄位 | session-gate 登入表單 |
+
+TLS 情境中的 `uv run curl-cffi get ... --impersonate chrome --no-verify --headers` 不是原生 curl 的替代參數：`--impersonate chrome` 選擇 Chrome 型態的 TLS／HTTP/2 指紋，`--headers` 輸出回應標頭；`--no-verify` 只可用在本機 mkcert 教材，不能用於正式服務。
+
+Python 卡片也說明使用的層次：靜態頁使用 `requests` 取得初始 HTML 再由 Beautiful Soup 以 CSS selector 解析；登入與限流情境使用 `requests.Session()` 保存 cookie；動態、token 與 CAPTCHA 情境使用 Playwright 執行頁面 JavaScript 並等待 DOM 狀態；TLS 情境使用 curl-cffi 的 Chrome impersonation。這些範例只針對本站授權測試環境，不應套用於未授權的網站。
+
 ## 各情境行為
+
+### 基本公開資料頁（`/basic`）
+
+此頁是其他情境的對照組，不套用任何反爬蟲規則。完整資料表直接存在初始 HTML，因此 curl、requests 與 Beautiful Soup 都可在一次 GET 請求後取得資料列。`basic_public_page.py` 展示最小的靜態表格解析方式。
 
 ### 請求頻率限制（`/rate-limit`）
 

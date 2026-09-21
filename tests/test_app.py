@@ -22,7 +22,7 @@ def test_index_and_robots_are_available() -> None:
 
 def test_page_rules_are_applied_to_each_html_document() -> None:
     c = client()
-    for scenario in ("rate-limit", "robots-honeypot"):
+    for scenario in ("basic", "rate-limit", "robots-honeypot"):
         page = c.get(f"/{scenario}")
         assert page.status_code == 200
         assert "2026 年 8 月城市零售指數" in page.text
