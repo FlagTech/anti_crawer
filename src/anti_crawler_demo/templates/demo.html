@@ -12,6 +12,11 @@
       <p class="eyebrow">單一反爬蟲規則情境</p>
       <h1>{{ meta[0] }}</h1>
       <p class="lead">{{ meta[2] }}</p>
+      {% if demo == 'session-gate' %}
+      <form method="post" action="/session-gate/logout" class="logout-form">
+        <button type="submit">登出本次示範工作階段</button>
+      </form>
+      {% endif %}
       <section class="dataset">
         <div>
           <p class="content-tag">公開統計資料庫</p>

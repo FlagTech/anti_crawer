@@ -33,8 +33,14 @@ def test_page_rules_are_applied_to_each_html_document() -> None:
     header_passed = c.get("/header-policy", headers={"Accept": "text/html", "User-Agent": "Mozilla/5.0 training-browser"})
     assert header_passed.status_code == 200
     assert "R-101" in header_passed.text
-    assert c.get("/session-gate").status_code == 401
-    session_page = c.get("/session-gate/start")
+    unauthenticated = c.get("/session-gate", follow_redirects=False)
+    assert unauthenticated.status_code == 303
+    assert unauthenticated.headers["location"] == "/session-gate/login"
+    login_page = c.get("/session-gate/login")
+    assert "learner@example.test" not in login_page.text
+    assert "DemoPass!2026" not in login_page.text
+    assert c.post("/session-gate/login", data={"username": "wrong@example.test", "password": "wrong"}).status_code == 401
+    session_page = c.post("/session-gate/login", data={"username": "learner@example.test", "password": "DemoPass!2026"})
     assert session_page.status_code == 200
     assert "R-101" in session_page.text
     for scenario in ("deferred-content", "js-token", "captcha-sim"):
@@ -81,7 +87,7 @@ def test_header_policy_and_session_gate() -> None:
     assert c.post("/api/header-policy/check").status_code == 403
     assert c.post("/api/header-policy/check", headers={"X-Demo-Client": "training-browser", "Accept": "application/json"}).status_code == 200
     assert c.post("/api/session-gate/read").status_code == 401
-    assert c.post("/api/session-gate/login").status_code == 200
+    c.post("/session-gate/login", data={"username": "learner@example.test", "password": "DemoPass!2026"})
     assert c.post("/api/session-gate/read").status_code == 200
     assert c.post("/api/session-gate/logout").status_code == 200
     assert c.post("/api/session-gate/read").status_code == 401

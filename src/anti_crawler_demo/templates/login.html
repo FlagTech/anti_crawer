@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="stylesheet" href="/static/site.css">
+    <title>示範會員登入</title>
+  </head>
+  <body>
+    <main class="login-page">
+      <a href="/" class="back">← 所有測試情境</a>
+      <p class="eyebrow">登入工作階段保護（Session gate）</p>
+      <h1>會員登入</h1>
+      <p class="lead">這是受保護的城市零售指數資料。登入成功後，伺服器才會建立可讀取資料的工作階段。</p>
+      <section class="login-card">
+        <h2>登入資料庫</h2>
+        <p class="login-note">請使用專案文件提供的訓練測試帳密。此頁不顯示帳密。</p>
+        {% if error %}<p class="login-error" role="alert">{{ error }}</p>{% endif %}
+        <form method="post" action="/session-gate/login" class="login-form">
+          <label for="username">帳號</label>
+          <input id="username" name="username" type="email" autocomplete="username" required>
+          <label for="password">密碼</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+          <button type="submit">登入並讀取資料</button>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

@@ -8,6 +8,7 @@ from collections import defaultdict, deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs
 
 from fastapi import Cookie, FastAPI, Header, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
@@ -15,6 +16,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 ROOT = Path(__file__).parent
+SESSION_COOKIE = "demo_session"
+TRAINING_USERNAME = "learner@example.test"
+TRAINING_PASSWORD = "DemoPass!2026"
 DEMOS = {
     "rate-limit": ("請求頻率限制（Rate limiting）", "10 秒內最多讀取 5 個頁面", "模擬爬蟲從索引追蹤多份報告時，伺服器如何以滑動視窗限制連續讀取。"),
     "header-policy": ("請求標頭檢查（Header policy）", "要求合理的網頁導覽標頭", "比較缺少標頭的自動請求與符合網頁導覽條件的完整 HTML 回應。"),
@@ -36,7 +40,7 @@ DATASET = [
 TECHNIQUE_INFO = {
     "rate-limit": ("滑動視窗限流", "索引與報告詳情頁共用 10 秒最多 5 次的讀取配額；超限回傳 429 與 Retry-After。", "保存同一個 session cookie，遇到 429 時讀取 Retry-After、等待後再重試。"),
     "header-policy": ("導覽標頭檢查", "整個 HTML 頁面要求 Accept: text/html 與瀏覽器樣式 User-Agent，缺少時回傳 403。", "在受控測試中提供網站要求的兩個標頭，再解析回傳的完整 HTML。"),
-    "session-gate": ("登入後的工作階段驗證", "模擬網站會員先完成登入、伺服器建立 session cookie 後，才能讀取受保護資料頁；沒有有效 session 時回傳 401。", "一般使用者從首頁進入會先建立示範登入狀態；程式則先造訪 /session-gate/start，並在後續請求保存與帶回 cookie。"),
+    "session-gate": ("登入後的工作階段驗證", "模擬會員在登入頁以唯一的訓練帳號與密碼送出表單；伺服器驗證成功後建立獨立、HttpOnly 的 session cookie，才會提供受保護資料頁。", "一般使用者在登入頁輸入 learner@example.test／DemoPass!2026；程式則以 Session 保存 cookie，POST 表單到 /session-gate/login 後再抓取 /session-gate。"),
     "deferred-content": ("動態資料載入", "初始 HTML 只提供表格結構，資料列由頁面 JavaScript 自動非同步載入。", "使用 Playwright 等可執行 JavaScript 的瀏覽器工具，等待資料列出現。"),
     "js-token": (
         "JavaScript 短效挑戰權杖",
@@ -149,13 +153,34 @@ async def honeypot(request: Request, demo_client: str | None = Cookie(default=No
     return reply(request, client, 403, "honeypot-hit", "已進入僅供觀測的誘餌路徑；此存取已被記錄並拒絕。")
 
 
-@app.get("/session-gate/start")
-async def start_session(request: Request, demo_client: str | None = Cookie(default=None)) -> RedirectResponse:
-    client = client_id(demo_client, request)
-    store.sessions.add(client)
+@app.get("/session-gate/login", response_class=HTMLResponse)
+async def session_login_page(request: Request) -> HTMLResponse:
+    if request.cookies.get(SESSION_COOKIE) in store.sessions:
+        return RedirectResponse("/session-gate", status_code=303)
+    return templates.TemplateResponse(request, "login.html", {"error": None, "username": TRAINING_USERNAME, "password": TRAINING_PASSWORD})
+
+
+@app.post("/session-gate/login", response_class=HTMLResponse)
+async def session_login(request: Request) -> HTMLResponse:
+    form = parse_qs((await request.body()).decode("utf-8"), keep_blank_values=True)
+    username = form.get("username", [""])[0]
+    password = form.get("password", [""])[0]
+    if not secrets.compare_digest(username, TRAINING_USERNAME) or not secrets.compare_digest(password, TRAINING_PASSWORD):
+        return templates.TemplateResponse(request, "login.html", {"error": "帳號或密碼不正確，尚未建立登入工作階段。", "username": TRAINING_USERNAME, "password": TRAINING_PASSWORD}, status_code=401)
+    session_id = secrets.token_urlsafe(24)
+    store.sessions.add(session_id)
     response = RedirectResponse("/session-gate", status_code=303)
-    if not demo_client:
-        response.set_cookie("demo_client", client, httponly=True, samesite="lax")
+    response.set_cookie(SESSION_COOKIE, session_id, httponly=True, samesite="lax")
+    return response
+
+
+@app.post("/session-gate/logout")
+async def session_logout(request: Request) -> RedirectResponse:
+    session_id = request.cookies.get(SESSION_COOKIE)
+    if session_id:
+        store.sessions.discard(session_id)
+    response = RedirectResponse("/session-gate/login", status_code=303)
+    response.delete_cookie(SESSION_COOKIE)
     return response
 
 
@@ -192,8 +217,8 @@ async def demo_page(request: Request, demo: str) -> HTMLResponse:
             return page_block(request, demo, 403, "header-policy", "缺少一般 HTML 瀏覽器導覽所需的 Accept 或 User-Agent 標頭。", "以 text/html 的 Accept 與瀏覽器樣式 User-Agent 重新請求本頁。")
         rows = DATASET
     elif demo == "session-gate":
-        if client not in store.sessions:
-            return page_block(request, demo, 401, "session-required", "尚未建立本站的示範 session，因此不提供資料表。", "一般使用者請從首頁的此情境連結進入；程式請先 GET /session-gate/start 並保留 cookie。")
+        if request.cookies.get(SESSION_COOKIE) not in store.sessions:
+            return RedirectResponse("/session-gate/login", status_code=303, headers={"X-Training-Rule": "session-required"})
         rows = DATASET
     elif demo == "robots-honeypot":
         rows = DATASET
@@ -246,14 +271,15 @@ async def action(
             return reply(request, client, 403, "header-policy", "缺少必要的示範請求標頭，或標頭值不正確。")
         return reply(request, client, 200, "header-policy", "請求標頭檢查已通過。", {"rows": DATASET})
     if demo == "session-gate":
-        if action == "login":
-            store.sessions.add(client)
-            return reply(request, client, 200, "session-created", "示範登入工作階段已建立。")
+        session_id = request.cookies.get(SESSION_COOKIE)
         if action == "logout":
-            store.sessions.discard(client)
-            return reply(request, client, 200, "session-cleared", "示範登入工作階段已清除。")
-        if client not in store.sessions:
-            return reply(request, client, 401, "session-required", "請先建立示範登入工作階段。")
+            if session_id:
+                store.sessions.discard(session_id)
+            response = reply(request, client, 200, "session-cleared", "示範登入工作階段已清除。")
+            response.delete_cookie(SESSION_COOKIE)
+            return response
+        if session_id not in store.sessions:
+            return reply(request, client, 401, "session-required", "請先從 /session-gate/login 送出正確的登入表單。")
         return reply(request, client, 200, "session-valid", "已取得登入後的受保護資料。", {"rows": DATASET})
     if demo == "deferred-content":
         if request.headers.get("x-requested-with") != "XMLHttpRequest":

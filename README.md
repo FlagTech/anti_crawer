@@ -110,7 +110,7 @@ bash scripts/stop-tls-demo.sh
 | --- | --- | --- |
 | `/rate-limit` | 10 秒內最多讀取 5 個索引或報告頁 | 第 6 次回 `429` 與 `Retry-After` |
 | `/header-policy` | 要求 `Accept: text/html` 與瀏覽器型態 User-Agent | 缺少標頭時整頁回 `403` |
-| `/session-gate` | 需先建立登入工作階段 cookie | 直接讀取回 `401` |
+| `/session-gate` | 需以唯一訓練帳密登入後取得 session cookie | 未登入時導向登入頁 |
 | `/deferred-content` | 資料列由頁面 JavaScript 載入 | 初始 HTML 沒有 `<tbody>` 資料列 |
 | `/js-token` | 短效、一次性挑戰權杖 | 頁面流程完成後才渲染表格 |
 | `/captcha-sim` | 本機算術驗證流程 | 手動答題後才顯示表格 |
@@ -118,6 +118,10 @@ bash scripts/stop-tls-demo.sh
 | `/tls-fingerprint` | TLS ClientHello／JA3 型態檢查 | `requests`／curl 被擋；Chrome 型態指紋可通過 |
 
 每個頁面都有可展開的 curl 與 Python 卡片、阻擋原因，以及合規的測試方式。阻擋回應皆含 `X-Training-Rule` 標頭。
+
+### 登入情境的訓練帳密
+
+`/session-gate/login` 的唯一訓練帳號為 `learner@example.test`，密碼為 `DemoPass!2026`。此組帳密只用於本機教材，登入頁不會顯示它們。
 
 ## 執行範例與測試
 

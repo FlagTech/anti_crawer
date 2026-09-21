@@ -17,7 +17,7 @@
       </section>
       <section class="grid">
         {% for slug, item in demos.items() %}
-        <a class="card" href="{{ '/session-gate/start' if slug == 'session-gate' else '/' ~ slug }}">
+        <a class="card" href="{{ '/session-gate/login' if slug == 'session-gate' else '/' ~ slug }}">
           <h2>{{ item[0] }}</h2>
           <p>{{ item[1] }}</p>
           <span>開啟資料情境 →</span>

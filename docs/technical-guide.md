@@ -74,7 +74,7 @@ bash scripts/start-tls-demo.sh
 
 ### 登入工作階段保護（`/session-gate`）
 
-`/session-gate/start` 建立示範 session cookie，再以 303 redirect 到受保護頁。直接請求 `/session-gate` 不會有資料表，並回 `401`。這模擬網站在登入後由伺服器保存工作階段的情境，而不是以固定 header 解鎖。
+`/session-gate/login` 提供真實的表單登入流程；唯一訓練帳號為 `learner@example.test`，密碼為 `DemoPass!2026`。帳密驗證成功後，伺服器建立獨立、HttpOnly 的 `demo_session` cookie，再以 303 redirect 到受保護頁。直接請求 `/session-gate` 不會有資料表，而會以 303 導向登入頁。這模擬網站在登入後由伺服器保存工作階段的情境，而不是以固定 header 解鎖。
 
 ### 動態內容載入（`/deferred-content`）
 
