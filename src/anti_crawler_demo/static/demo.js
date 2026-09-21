@@ -75,7 +75,30 @@ const notes={
   'python-block':'程式先由 `mkcert -CAROOT` 找到 rootCA.pem，讓 requests 在驗證憑證後真正連上網站；接著它仍因 OpenSSL ClientHello 不符合 Chromium 基線而得到 403。',
   'python-pass':'curl-cffi 以 `impersonate="chrome"` 使用 Chrome 型態的 TLS 與 HTTP/2 指紋。程式指定 mkcert 的 rootCA.pem 驗證本機憑證，通過代理判斷後，再用 Beautiful Soup 讀取整頁 HTML 中的資料列。'}
 };
-if(demo!=='basic')for(const [id,text] of Object.entries(notes[demo]))document.querySelector(`#${id}-note`).textContent=text;
+function appendInlineCode(container, text){
+ for(const part of text.split(/(`[^`]+`)/g)){
+  if(part.startsWith('`')&&part.endsWith('`')){
+   const code=document.createElement('code');
+   code.textContent=part.slice(1,-1);
+   container.append(code);
+  }else container.append(document.createTextNode(part));
+ }
+}
+function renderNote(target, text){
+ target.replaceChildren();
+ for(const [index, rawLine] of text.split('\n').entries()){
+  if(index)target.append(document.createElement('br'));
+  const isItem=rawLine.startsWith('- ');
+  if(isItem){
+   const bullet=document.createElement('span');
+   bullet.className='example-bullet';
+   bullet.textContent='• ';
+   target.append(bullet);
+  }
+  appendInlineCode(target, isItem?rawLine.slice(2):rawLine);
+ }
+}
+for(const [id,text] of Object.entries(notes[demo]))renderNote(document.querySelector(`#${id}-note`),text);
 const api=(action,body,headers={})=>fetch(`/api/${demo}/${action}`,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:body?JSON.stringify(body):undefined}).then(async r=>({code:r.status,json:await r.json()}));
 function renderRows(rows){const body=table.querySelector('tbody');body.replaceChildren(...rows.map(row=>{const tr=document.createElement('tr');for(const value of [row.id,row.name,row.period,row.value]){const td=document.createElement('td');td.textContent=value;tr.append(td)}return tr}));table.hidden=false;datasetState.className='verdict allowed';datasetState.textContent=`✓ 已自動載入 ${rows.length} 筆資料。`}
 async function setupCaptcha(){const panel=document.querySelector('#captcha-panel'),prompt=document.querySelector('#captcha-prompt'),answer=document.querySelector('#captcha-answer'),submit=document.querySelector('#captcha-submit'),status=document.querySelector('#captcha-status');try{const issued=await api('issue');prompt.textContent=issued.json.data.prompt;panel.hidden=false;submit.onclick=async()=>{submit.disabled=true;status.textContent='正在驗證…';const response=await api('verify',{answer:answer.value});if(response.json.data?.rows){renderRows(response.json.data.rows);panel.hidden=true}else{status.textContent=`驗證失敗：${response.json.message}`;submit.disabled=false;answer.focus()}};answer.focus()}catch(error){datasetState.className='verdict blocked';datasetState.textContent=`無法準備驗證題目：${error.message}`}}

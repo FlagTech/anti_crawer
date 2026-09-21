@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <link rel="stylesheet" href="/static/site.css">
+    <link rel="stylesheet" href="/static/site.css?v=20260921-rich-notes">
     <title>{{ meta[0] }}</title>
   </head>
   <body data-demo="{{ demo }}" data-server-rows="{{ 'true' if rows else 'false' }}">
@@ -79,17 +79,17 @@
         </aside>
         <details>
           <summary>{{ 'curl：直接取得資料表' if demo == 'basic' else 'curl：預期被阻擋' }}</summary>
-          <p class="example-note" id="curl-block-note">{% if demo == 'basic' %}參數作用：`-s`（silent）關閉 curl 的進度列與一般錯誤訊息，讓標準輸出只留下回應 HTML；它不會改變送出的 HTTP 請求。{% endif %}</p>
+          <p class="example-note" id="curl-block-note">{% if demo == 'basic' %}參數作用：<code>-s</code>（silent）關閉 curl 的進度列與一般錯誤訊息，讓標準輸出只留下回應 HTML；它不會改變送出的 HTTP 請求。{% endif %}</p>
           <pre id="curl-block">{% if demo == 'basic' %}curl -s {{ request.base_url }}basic{% endif %}</pre>
         </details>
         <details>
           <summary>{{ 'curl：同一個直接取得方式' if demo == 'basic' else 'curl：預期通過' }}</summary>
-          <p class="example-note" id="curl-pass-note">{% if demo == 'basic' %}參數作用：`-s` 讓管線只接到 HTML；`|` 把標準輸出交給 grep；`grep -A 30` 以正規表示式找出 `dataset-table`，並多印命中行後 30 行。grep 只篩選終端輸出，不影響 HTTP 請求。{% endif %}</p>
+          <p class="example-note" id="curl-pass-note">{% if demo == 'basic' %}參數作用：<code>-s</code> 讓管線只接到 HTML；<code>|</code> 把標準輸出交給 grep；<code>grep -A 30</code> 以正規表示式找出 <code>dataset-table</code>，並多印命中行後 30 行。grep 只篩選終端輸出，不影響 HTTP 請求。{% endif %}</p>
           <pre id="curl-pass">{% if demo == 'basic' %}curl -s {{ request.base_url }}basic | grep -A 30 'dataset-table'{% endif %}</pre>
         </details>
         <details>
           <summary>{{ 'Python：直接解析資料表' if demo == 'basic' else 'Python：預期被阻擋' }}</summary>
-          <p class="example-note" id="python-block-note">{% if demo == 'basic' %}程式作用：`requests.get()` 發出一次 GET，`r.text` 取得解碼後的 HTML 字串；`BeautifulSoup(..., 'html.parser')` 建立可查詢的文件樹，CSS selector 直接選取資料列。{% endif %}</p>
+          <p class="example-note" id="python-block-note">{% if demo == 'basic' %}程式作用：<code>requests.get()</code> 發出一次 GET，<code>r.text</code> 取得解碼後的 HTML 字串；<code>BeautifulSoup(..., 'html.parser')</code> 建立可查詢的文件樹，CSS selector 直接選取資料列。{% endif %}</p>
           <pre id="python-block">{% if demo == 'basic' %}import requests
 from bs4 import BeautifulSoup
 r = requests.get('{{ request.base_url }}basic')
@@ -98,7 +98,7 @@ print(r.status_code, [row.get_text(' ', strip=True) for row in soup.select('#dat
         </details>
         <details>
           <summary>{{ 'Python：requests + Beautiful Soup' if demo == 'basic' else 'Python：預期通過並擷取資料表' }}</summary>
-          <p class="example-note" id="python-pass-note">{% if demo == 'basic' %}程式作用：`#dataset-table tbody tr` 是 CSS selector，依序限定 id 為 dataset-table 的表格、tbody 及所有 tr；`get_text()` 將各儲存格文字合併為可印出的字串。{% endif %}</p>
+          <p class="example-note" id="python-pass-note">{% if demo == 'basic' %}程式作用：<code>#dataset-table tbody tr</code> 是 CSS selector，依序限定 id 為 dataset-table 的表格、tbody 及所有 tr；<code>get_text()</code> 將各儲存格文字合併為可印出的字串。{% endif %}</p>
           <pre id="python-pass">{% if demo == 'basic' %}import requests
 from bs4 import BeautifulSoup
 r = requests.get('{{ request.base_url }}basic')
@@ -107,6 +107,6 @@ print(r.status_code, [row.get_text(' ', strip=True) for row in soup.select('#dat
         </details>
       </section>
     </main>
-    <script src="/static/demo.js?v=20260921-args-explained"></script>
+    <script src="/static/demo.js?v=20260921-rich-notes"></script>
   </body>
 </html>
