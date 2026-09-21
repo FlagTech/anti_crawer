@@ -66,18 +66,20 @@ bash scripts/start-tls-demo.sh
 
 每個情境頁的四張展開卡都附有與該段程式碼相對應的說明，不只列出命令。常見的 curl 選項如下：
 
-| 選項 | 用途 | 使用情境 |
+| 選項 | 實際作用 | 使用情境 |
 | --- | --- | --- |
-| `-s` | 關閉進度列，只輸出回應內容 | 靜態或動態 HTML 的輸出檢查 |
-| `-i` | 將 HTTP status 與回應標頭一起輸出 | 觀察 `403`、`429`、`Retry-After`、`Location`、`X-Training-Rule` |
-| `-H` | 加入指定 request header | header-policy 的 `Accept: text/html` |
-| `-A` | 設定 User-Agent | header-policy 的瀏覽器型態 UA |
-| `-c FILE` | 將伺服器回覆的 cookie 寫入檔案 | rate-limit、登入 session |
-| `-b FILE` | 從檔案帶回 cookie | 以同一個用戶端識別碼繼續請求 |
-| `-L` | 跟隨 3xx redirect | 登入成功後抵達受保護資料頁 |
-| `-X POST`、`-d` | 指定 POST 並送出 URL-encoded 表單欄位 | session-gate 登入表單 |
+| `-s` | 關閉進度列與一般錯誤訊息；不改變 HTTP 請求，只讓 stdout 適合交給管線 | 靜態或動態 HTML 的輸出檢查 |
+| `-i` | 將回應的 status line 和 headers 接在輸出前；不會新增 request header | 觀察 `403`、`429`、`Retry-After`、`Location`、`X-Training-Rule` |
+| `-H '名稱: 值'` | 逐字加入一個 request header；可重複使用以加入多個標頭 | header-policy 的 `Accept: text/html` |
+| `-A 值` | 將 `User-Agent` request header 設為指定值，是 `-H 'User-Agent: 值'` 的捷徑 | header-policy 的瀏覽器型態 UA |
+| `-c FILE` | 收到回應後，將 Set-Cookie 寫成 Netscape cookie jar 檔；不會自動在下一條命令使用它 | rate-limit、登入 session |
+| `-b FILE` | 讀取 cookie jar，並在 request 中產生 `Cookie` header | 以同一個用戶端識別碼繼續請求 |
+| `-L` | 收到 3xx 與 `Location` 後自動再發出下一個請求；本登入流程的 303 會以 GET 讀取目標頁 | 登入成功後抵達受保護資料頁 |
+| `-d 資料` | 把欄位編碼為 `application/x-www-form-urlencoded` request body；沒有 `-X` 時 curl 會使用 POST | session-gate 登入表單 |
 
-TLS 情境中的 `uv run curl-cffi get ... --impersonate chrome --no-verify --headers` 不是原生 curl 的替代參數：`--impersonate chrome` 選擇 Chrome 型態的 TLS／HTTP/2 指紋，`--headers` 輸出回應標頭；`--no-verify` 只可用在本機 mkcert 教材，不能用於正式服務。
+管線中的 `|` 會把左側程式的標準輸出交給右側程式；`grep -A 30 PATTERN` 則用正規表示式尋找 `PATTERN`，並多印命中行後 30 行。兩者只改變本機終端輸出，不會改變 HTTP 請求。
+
+TLS 情境中的 `uv run curl-cffi get ... --impersonate chrome --no-verify --headers` 不是原生 curl 的替代參數：`get` 選擇 GET 子命令，`--impersonate chrome` 選擇 Chrome 型態的 TLS／HTTP/2 指紋，`--headers` 將回應標頭輸出；`--no-verify` 會略過伺服器憑證鏈驗證，只可用在本機 mkcert 教材，不能用於正式服務。
 
 Python 卡片也說明使用的層次：靜態頁使用 `requests` 取得初始 HTML 再由 Beautiful Soup 以 CSS selector 解析；登入與限流情境使用 `requests.Session()` 保存 cookie；動態、token 與 CAPTCHA 情境使用 Playwright 執行頁面 JavaScript 並等待 DOM 狀態；TLS 情境使用 curl-cffi 的 Chrome impersonation。這些範例只針對本站授權測試環境，不應套用於未授權的網站。
 
