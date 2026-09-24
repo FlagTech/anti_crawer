@@ -139,7 +139,7 @@ uv run python examples/python/deferred_content_passed.py
 # 無保護對照組：直接讀取靜態 HTML 資料表
 uv run python examples/python/basic_public_page.py
 
-# 無頭模式標頭：含 HeadlessChrome 的 UA 被擋；一般 Chrome 標記可讀取資料表
+# 無頭模式標頭：Playwright 的 headless=True 被擋；headless=False 可讀取資料表
 uv run python examples/python/headless_header_blocked.py
 uv run python examples/python/headless_header_passed.py
 

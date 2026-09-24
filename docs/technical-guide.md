@@ -99,7 +99,7 @@ Python 卡片也說明使用的層次：靜態頁使用 `requests` 取得初始 
 
 ### 無頭模式標頭檢查（`/headless-header`）
 
-此頁只檢查 `User-Agent` 是否含有 `HeadlessChrome`。部分舊版 Chrome／自動化工具在無頭模式下會留下這個產品標記；命中時伺服器在回傳整份 HTML 前以 `403 headless-user-agent` 阻擋，未命中時則直接回傳資料表。
+此頁只檢查 `User-Agent` 是否含有 `HeadlessChrome`。部分 Chrome／自動化工具在無頭模式下會留下這個產品標記；命中時伺服器在回傳整份 HTML 前以 `403 headless-user-agent` 阻擋，未命中時則直接回傳資料表。對應 Python 範例不手動偽造標頭：`headless_header_blocked.py` 以 Playwright 啟動真正的 `headless=True` Chromium；`headless_header_passed.py` 以 `headless=False` 啟動可見 Chromium 並擷取表格。
 
 這是刻意簡化的「標頭特徵」示範，並非可靠的無頭偵測。User-Agent 可被任意設定，新版 Chrome headless 模式也可能使用與一般 Chrome 相同的 User-Agent。實務上應將它視為低可信度訊號，與行為、session、節流、瀏覽器完整性與風險評分一起使用，而不是把改寫 User-Agent 當成安全邊界。
 

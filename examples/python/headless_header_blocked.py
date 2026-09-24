@@ -1,11 +1,12 @@
-"""Reproduce the training block using a legacy HeadlessChrome User-Agent token."""
+"""Use a real Playwright headless Chromium process against the training page."""
 
-import requests
+from playwright.sync_api import sync_playwright
 
 from common import BASE_URL
 
-response = requests.get(
-    f"{BASE_URL}/headless-header",
-    headers={"User-Agent": "Mozilla/5.0 HeadlessChrome/140.0"},
-)
-print(response.status_code, response.headers.get("X-Training-Rule"))
+with sync_playwright() as playwright:
+    browser = playwright.chromium.launch(headless=True)
+    page = browser.new_page()
+    response = page.goto(f"{BASE_URL}/headless-header")
+    print(response.status, response.headers.get("x-training-rule"))  # 403 headless-user-agent
+    browser.close()
