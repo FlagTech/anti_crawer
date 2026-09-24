@@ -97,6 +97,12 @@ Python 卡片也說明使用的層次：靜態頁使用 `requests` 取得初始 
 
 整個 HTML 文件要求 `Accept: text/html` 和 Mozilla 型態的 User-Agent；缺少任一條件即回 `403`。這是最小化的教材規則，實務上不應把 User-Agent 當作身分證明，因為它可被任意偽造。
 
+### 無頭模式標頭檢查（`/headless-header`）
+
+此頁只檢查 `User-Agent` 是否含有 `HeadlessChrome`。部分舊版 Chrome／自動化工具在無頭模式下會留下這個產品標記；命中時伺服器在回傳整份 HTML 前以 `403 headless-user-agent` 阻擋，未命中時則直接回傳資料表。
+
+這是刻意簡化的「標頭特徵」示範，並非可靠的無頭偵測。User-Agent 可被任意設定，新版 Chrome headless 模式也可能使用與一般 Chrome 相同的 User-Agent。實務上應將它視為低可信度訊號，與行為、session、節流、瀏覽器完整性與風險評分一起使用，而不是把改寫 User-Agent 當成安全邊界。
+
 ### 登入工作階段保護（`/session-gate`）
 
 `/session-gate/login` 提供真實的表單登入流程；唯一訓練帳號為 `learner@example.test`，密碼為 `DemoPass!2026`。帳密驗證成功後，伺服器建立獨立、HttpOnly 的 `demo_session` cookie，再以 303 redirect 到受保護頁。直接請求 `/session-gate` 不會有資料表，而會以 303 導向登入頁。這模擬網站在登入後由伺服器保存工作階段的情境，而不是以固定 header 解鎖。
@@ -151,7 +157,7 @@ curl-cffi CLI 的 `--no-verify` 只應用於本機示範，絕不能延伸到公
 
 ### 可直接部署的範圍
 
-Railway 的一般公開網域由平台邊緣處理 HTTPS，應用程式收到的是平台轉送的 HTTP 請求。這使 `/rate-limit`、`/header-policy`、`/session-gate`、`/deferred-content`、`/js-token`、`/captcha-sim` 與 `/robots-honeypot` 都可正常公開展示；但 `/tls-fingerprint` 無法看見訪客原始 ClientHello，會回覆 `403 tls-proxy-required`。這是預期行為，不應在 Railway 上以任意 HTTP header 偽造 TLS 訊號。
+Railway 的一般公開網域由平台邊緣處理 HTTPS，應用程式收到的是平台轉送的 HTTP 請求。這使 `/rate-limit`、`/header-policy`、`/headless-header`、`/session-gate`、`/deferred-content`、`/js-token`、`/captcha-sim` 與 `/robots-honeypot` 都可正常公開展示；但 `/tls-fingerprint` 無法看見訪客原始 ClientHello，會回覆 `403 tls-proxy-required`。這是預期行為，不應在 Railway 上以任意 HTTP header 偽造 TLS 訊號。
 
 部署步驟如下：
 

@@ -111,6 +111,7 @@ bash scripts/stop-tls-demo.sh
 | `/basic` | 無反爬蟲保護 | 完整資料表直接存在 HTML，是其他情境的對照組 |
 | `/rate-limit` | 10 秒內最多讀取 5 個索引或報告頁 | 第 6 次回 `429` 與 `Retry-After` |
 | `/header-policy` | 要求 `Accept: text/html` 與瀏覽器型態 User-Agent | 缺少標頭時整頁回 `403` |
+| `/headless-header` | User-Agent 包含 `HeadlessChrome` 時拒絕 | 模擬部分無頭瀏覽器的產品標記；此規則可被偽造，僅作教材示範 |
 | `/session-gate` | 需以唯一訓練帳密登入後取得 session cookie | 未登入時導向登入頁 |
 | `/deferred-content` | 資料列由頁面 JavaScript 載入 | 初始 HTML 沒有 `<tbody>` 資料列 |
 | `/js-token` | 短效、一次性挑戰權杖 | 頁面流程完成後才渲染表格 |
@@ -137,6 +138,10 @@ uv run python examples/python/deferred_content_passed.py
 
 # 無保護對照組：直接讀取靜態 HTML 資料表
 uv run python examples/python/basic_public_page.py
+
+# 無頭模式標頭：含 HeadlessChrome 的 UA 被擋；一般 Chrome 標記可讀取資料表
+uv run python examples/python/headless_header_blocked.py
+uv run python examples/python/headless_header_passed.py
 
 # TLS：一般 requests 被擋，curl-cffi 模擬 Chrome 指紋後可通過
 uv run python examples/python/tls_fingerprint_blocked.py https://localhost:8443

@@ -33,6 +33,12 @@ def test_page_rules_are_applied_to_each_html_document() -> None:
     header_passed = c.get("/header-policy", headers={"Accept": "text/html", "User-Agent": "Mozilla/5.0 training-browser"})
     assert header_passed.status_code == 200
     assert "R-101" in header_passed.text
+    headless_blocked = c.get("/headless-header", headers={"User-Agent": "Mozilla/5.0 HeadlessChrome/140.0"})
+    assert headless_blocked.status_code == 403
+    assert headless_blocked.headers["x-training-rule"] == "headless-user-agent"
+    headless_passed = c.get("/headless-header", headers={"User-Agent": "Mozilla/5.0 Chrome/140.0"})
+    assert headless_passed.status_code == 200
+    assert "R-101" in headless_passed.text
     unauthenticated = c.get("/session-gate", follow_redirects=False)
     assert unauthenticated.status_code == 303
     assert unauthenticated.headers["location"] == "/session-gate/login"

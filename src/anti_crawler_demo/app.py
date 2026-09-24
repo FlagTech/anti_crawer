@@ -23,6 +23,7 @@ DEMOS = {
     "basic": ("基本公開資料頁（No protection）", "不套用反爬蟲規則", "最簡易的對照組：完整資料表直接出現在 HTML，任何一般 HTTP client 都可讀取。"),
     "rate-limit": ("請求頻率限制（Rate limiting）", "10 秒內最多讀取 5 個頁面", "模擬爬蟲從索引追蹤多份報告時，伺服器如何以滑動視窗限制連續讀取。"),
     "header-policy": ("請求標頭檢查（Header policy）", "要求合理的網頁導覽標頭", "比較缺少標頭的自動請求與符合網頁導覽條件的完整 HTML 回應。"),
+    "headless-header": ("無頭模式標頭檢查（Headless header）", "拒絕含 HeadlessChrome 的 User-Agent", "模擬網站由 User-Agent 內的無頭瀏覽器標記辨識自動化工具，並回傳整頁 403。"),
     "session-gate": ("登入工作階段保護（Session gate）", "必須先登入才能讀取資料", "模擬會員登入後才可閱讀受保護資料；沒有有效工作階段時不提供資料表。"),
     "deferred-content": ("動態內容載入（Deferred content）", "資料列在頁面載入後取得", "初始文件不含資料列，需由能執行 JavaScript 的瀏覽器完成載入。"),
     "js-token": ("JavaScript 短效權杖（JavaScript token）", "需取得一次性短效權杖", "頁面完成短暫的 JavaScript 流程後才會取得資料列。"),
@@ -42,6 +43,7 @@ TECHNIQUE_INFO = {
     "basic": ("無反爬蟲保護", "整頁 HTML 直接包含資料表，沒有 cookie、標頭、登入、JavaScript、速率或 TLS 指紋條件。", "直接用 curl 或 requests 取得本頁，再以 Beautiful Soup 選取 #dataset-table 的資料列即可。此頁是用來對照其他單一防護情境的基準。"),
     "rate-limit": ("滑動視窗限流", "索引與報告詳情頁共用 10 秒最多 5 次的讀取配額；超限回傳 429 與 Retry-After。", "保存同一個 session cookie，遇到 429 時讀取 Retry-After、等待後再重試。"),
     "header-policy": ("導覽標頭檢查", "整個 HTML 頁面要求 Accept: text/html 與瀏覽器樣式 User-Agent，缺少時回傳 403。", "在受控測試中提供網站要求的兩個標頭，再解析回傳的完整 HTML。"),
+    "headless-header": ("無頭模式 User-Agent 標記檢查", "此頁只讀取 HTTP `User-Agent`。若值中包含 `HeadlessChrome`（部分自動化瀏覽器預設會附帶的產品標記），便拒絕整份 HTML 並回傳 403。沒有此標記時，資料表直接存在回應中。", "這是觀察標頭差異的教材，不是可靠的身分驗證：User-Agent 可被改寫，且新版 Chrome 的 headless 模式未必含此字串。合規測試應使用正式瀏覽器設定或網站核准的自動化方式；實務上需結合其他伺服器端風險訊號。"),
     "session-gate": ("登入後的工作階段驗證", "模擬會員在登入頁以唯一的訓練帳號與密碼送出表單；伺服器驗證成功後建立獨立、HttpOnly 的 session cookie，才會提供受保護資料頁。", "一般使用者在登入頁輸入 learner@example.test／DemoPass!2026；程式則以 Session 保存 cookie，POST 表單到 /session-gate/login 後再抓取 /session-gate。"),
     "deferred-content": ("動態資料載入", "初始 HTML 只提供表格結構，資料列由頁面 JavaScript 自動非同步載入。", "使用 Playwright 等可執行 JavaScript 的瀏覽器工具，等待資料列出現。"),
     "js-token": (
@@ -116,6 +118,11 @@ def reply(request: Request, client: str, status: int, rule: str, message: str, d
 
 def browser_headers_present(request: Request) -> bool:
     return "text/html" in request.headers.get("accept", "").lower() and "mozilla" in request.headers.get("user-agent", "").lower()
+
+
+def is_headless_user_agent(request: Request) -> bool:
+    """Educational-only detection of the legacy HeadlessChrome UA product token."""
+    return "headlesschrome" in request.headers.get("user-agent", "").lower()
 
 
 def page_block(request: Request, demo: str, status: int, rule: str, reason: str, recovery: str, retry_after: int | None = None) -> HTMLResponse:
@@ -219,6 +226,10 @@ async def demo_page(request: Request, demo: str) -> HTMLResponse:
     elif demo == "header-policy":
         if not browser_headers_present(request):
             return page_block(request, demo, 403, "header-policy", "缺少一般 HTML 瀏覽器導覽所需的 Accept 或 User-Agent 標頭。", "以 text/html 的 Accept 與瀏覽器樣式 User-Agent 重新請求本頁。")
+        rows = DATASET
+    elif demo == "headless-header":
+        if is_headless_user_agent(request):
+            return page_block(request, demo, 403, "headless-user-agent", "User-Agent 含有 HeadlessChrome 標記，符合本頁設定的無頭模式特徵。", "這是僅供教材的標頭檢查；請改用一般瀏覽器設定或核准的測試方式。請注意，改寫 User-Agent 並不是正式防護的可靠繞過方式。")
         rows = DATASET
     elif demo == "session-gate":
         if request.cookies.get(SESSION_COOKIE) not in store.sessions:
