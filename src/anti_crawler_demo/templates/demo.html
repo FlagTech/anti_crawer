@@ -83,7 +83,7 @@
           <pre id="curl-block">{% if demo == 'basic' %}curl -s {{ request.base_url }}basic{% endif %}</pre>
         </details>
         <details>
-          <summary>{{ 'curl：同一個直接取得方式' if demo == 'basic' else 'curl：預期通過' }}</summary>
+          <summary>{{ 'curl：同一個直接取得方式' if demo == 'basic' else ('curl：通過標頭檢查，但無法載入資料列' if demo == 'headless-header' else 'curl：預期通過') }}</summary>
           <p class="example-note" id="curl-pass-note">{% if demo == 'basic' %}參數作用：<code>-s</code> 讓管線只接到 HTML；<code>|</code> 把標準輸出交給 grep；<code>grep -A 30</code> 以正規表示式找出 <code>dataset-table</code>，並多印命中行後 30 行。grep 只篩選終端輸出，不影響 HTTP 請求。{% endif %}</p>
           <pre id="curl-pass">{% if demo == 'basic' %}curl -s {{ request.base_url }}basic | grep -A 30 'dataset-table'{% endif %}</pre>
         </details>
@@ -107,6 +107,6 @@ print(r.status_code, [row.get_text(' ', strip=True) for row in soup.select('#dat
         </details>
       </section>
     </main>
-    <script src="/static/demo.js?v=20260924-playwright-headless"></script>
+    <script src="/static/demo.js?v=20260924-headless-dynamic-content"></script>
   </body>
 </html>
